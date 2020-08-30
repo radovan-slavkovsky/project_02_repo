@@ -101,7 +101,6 @@ class DecoderRNN(nn.Module):
     
 # Before executing the next code cell, you must write the sample method in the DecoderRNN class in model.py. This method should 
 # accept as input a PyTorch tensor features containing the embedded input features corresponding to a single image.
-
 # It should return as output a Python list output, indicating the predicted sentence. output[i] is a nonnegative integer that 
 # identifies the predicted i-th token in the sentence. The correspondence between integers and tokens can be explored by 
 # examining either data_loader.dataset.vocab.word2idx (or data_loader.dataset.vocab.idx2word).
