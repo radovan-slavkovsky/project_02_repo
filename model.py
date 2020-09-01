@@ -21,6 +21,9 @@ class EncoderCNN(nn.Module):
         features = self.embed(features)
         return features
     
+    ###
+    ### inspiration from training materials !
+    ###
     
 # class LSTMTagger(nn.Module):
 
@@ -74,6 +77,9 @@ class DecoderRNN(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_size, embed_size)
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.vocab_size = vocab_size
         
         #Applies a multi-layer long short-term memory (LSTM) RNN to an input sequence
         self.lstm = nn.LSTM(input_size = embed_size,hidden_size = hidden_size, num_layers = num_layers)
@@ -99,31 +105,55 @@ class DecoderRNN(nn.Module):
         return tag_scores
 
     
-# Before executing the next code cell, you must write the sample method in the DecoderRNN class in model.py. This method should 
-# accept as input a PyTorch tensor features containing the embedded input features corresponding to a single image.
-# It should return as output a Python list output, indicating the predicted sentence. output[i] is a nonnegative integer that 
-# identifies the predicted i-th token in the sentence. The correspondence between integers and tokens can be explored by 
-# examining either data_loader.dataset.vocab.word2idx (or data_loader.dataset.vocab.idx2word).
+    ###
+    ### custom implementation of sample function, malfunction ??
+    ###
     
-    def sample(self, inputs, states=None, max_len=20):
-        " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
-        sentences = []
-        while max_len != 0:
-            lstm_outputs, states = self.lstm(inputs, states)
+#     def sample(self, inputs, states=None, max_len=20):
+#         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
+#         sentences = []
+#         while max_len != 0:
+#             lstm_outputs, states = self.lstm(inputs, states)
             
-            lstm_outputs = lstm_outputs.squeeze(1)
-            values = self.hidden2tag(lstm_outputs)
+#             lstm_outputs = lstm_outputs.squeeze(1)
+#             values = self.hidden2tag(lstm_outputs)
             
-            ### I've strugled with passing correct values from tensor so I had to google and search in community forums
-            ### I've found logic for finding max value in Udacity Knowledge hub : knowledge.udacity.com
-            value_to_pass = values.max(1)[1]
+#             ### I've strugled with passing correct values from tensor so I had to google and search in community forums
+#             ### I've found logic for finding max value in Udacity Knowledge hub : knowledge.udacity.com
+#             value_to_pass = values.max(1)[1]
             
-            # converts np array to scallar and adds it to sentences which will be returned after looping 20 times (max_len) 
-            sentences.append(np.asscalar(value_to_pass))
-            print('check :',np.asscalar(value_to_pass))       
+#             # converts np array to scallar and adds it to sentences which will be returned after looping 20 times (max_len) 
+#             sentences.append(np.asscalar(value_to_pass))
+#             print('check :',np.asscalar(value_to_pass))       
            
-            # now we have to prepare new input, with value_to_pass, which will serve as a new input - like "memory"
-            inputs = self.word_embeddings(value_to_pass).unsqueeze(1)
-            max_len = max_len - 1
+#             # now we have to prepare new input, with value_to_pass, which will serve as a new input - like "memory"
+#             inputs = self.word_embeddings(value_to_pass).unsqueeze(1)
+#             max_len = max_len - 1
          
-        return sentences
+#         return sentences
+
+
+    ### 
+    ### sample function from mentor
+    ###
+
+    def sample(self, inputs, states=None, max_len=20):
+        caption = []
+        # initialize the hidden state and send it to the same device as the inputs
+        hidden = (torch.randn(self.num_layers, 1, self.hidden_size).to(inputs.device),
+                  torch.randn(self.num_layers, 1, self.hidden_size).to(inputs.device))
+        # Now we feed the LSTM output and hidden states back into itself to get the caption
+        for i in range(max_len):
+            lstm_out, hidden = self.lstm(inputs, hidden) # batch_size=1, sequence length=1 ->1,1,embedsize
+            
+            # original   :    outputs = self.hidden2vocab(lstm_out)        # 1,1,vocab_size
+            outputs = self.hidden2tag(lstm_out)        # 1,1,vocab_size
+            outputs = outputs.squeeze(1)                 # 1,vocab_size
+            wordid  = outputs.argmax(dim=1)              # 1
+            caption.append(wordid.item())
+            
+            # prepare input for next iteration
+            inputs = self.word_embeddings(wordid.unsqueeze(0))  # 1,1->1,1,embed_size
+          
+        return caption
+        
